@@ -4,17 +4,20 @@ require 'nokogiri'
 require 'open-uri'
 require 'fiddle'
 
-KHRONOS_GL_XML = 'https://cvs.khronos.org/svn/repos/ogl/trunk/doc/registry/public/api/gl.xml'
+KHRONOS_GL_XMLS = ['gl.xml','glx.xml','wgl.xml']
+KHRONOS_GL_XML_PATH = 'https://cvs.khronos.org/svn/repos/ogl/trunk/doc/registry/public/api/'
 
-if !File.exist?('gl.xml')
-  puts "gl.xml doesn't exist: downloading <#{KHRONOS_GL_XML}>..."
-  curl_pid = Process.spawn("curl --output 'gl.xml' '#{KHRONOS_GL_XML}'")
-  Process.wait(curl_pid)
-  if !$?.exited? || !$?.success?
-    puts "Download failed. Try again."
-    exit 1
+KHRONOS_GL_XMLS.each do |filename|
+  if !File.exist?(filename)
+    puts "#{filename} doesn't exist: downloading <#{KHRONOS_GL_XML_PATH}#{filename}>..."
+    curl_pid = Process.spawn("curl --output '#{filename}' '#{KHRONOS_GL_XML_PATH}#{filename}'")
+    Process.wait(curl_pid)
+    if !$?.exited? || !$?.success?
+      puts "Download failed. Try again."
+      exit 1
+    end
+    puts "Download complete."
   end
-  puts "Download complete."
 end
 
 # name => String
@@ -98,6 +101,10 @@ def generate_binding_impl(document)
   begin
     gl_commands = get_commands(document)
     gl_enums = get_enums(document)
+#	puts document
+#	gl_commands.each { |comm| puts comm.to_s }
+#	puts gl_commands.to_s
+#	puts gl_enums.to_s
 
     pull_feature = proc { |feature|
       feature_name = feature['name']
@@ -122,13 +129,13 @@ def generate_binding_impl(document)
     }
 
     extensions = document.xpath("registry/extensions/extension")
-    core_exts = extensions.select { |ext| ext['supported'] =~ /\bglcore\b/ }
+    core_exts = extensions.select { |ext| ext['supported'] =~ /\bglcore\b/ || ext['supported'] =~ /\bglx\b/ || ext['supported'] =~ /\bwgl\b/ }
     core_exts.each { |ext|
       ext.xpath('extension/require/*[(self::command|self::enum)]').each(&pull_feature)
     }
 
     features = document.xpath('registry/feature')
-    gl_features = features.select { |feature| feature['api'] =~ /\bgl\b/ }
+    gl_features = features.select { |feature| feature['api'] =~ /\bgl\b/ || feature['api'] =~ /\bglx\b/ || feature['api'] =~ /\bwgl\b/ }
     gl_features.each { |feature|
       feature.xpath('require/*[(self::command|self::enum)]').each(&pull_feature)
       if GEN_GL3_AND_UP
@@ -230,7 +237,7 @@ end
 
 # Read gl.xml
 
-document_paths = [ 'gl.xml' ]
+document_paths = [ 'gl.xml', 'glx.xml', 'wgl.xml' ]
 
 document_paths.each {
   |path|
