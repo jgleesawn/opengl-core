@@ -11,6 +11,10 @@
 require 'opengl-core/gl-sym'
 require 'opengl-core/gl-enums'
 require 'opengl-core/gl-commands'
+require 'opengl-core/glx-enums'
+require 'opengl-core/glx-commands'
+require 'opengl-core/wgl-enums'
+require 'opengl-core/wgl-commands'
 
 
 module GL

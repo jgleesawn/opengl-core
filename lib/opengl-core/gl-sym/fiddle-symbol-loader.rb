@@ -8,14 +8,22 @@
 
 
 require 'fiddle'
+require 'fiddle/import'
+require 'fiddle/types'
 require 'rbconfig'
-
 
 module GL
 
 module GLSym
 
-class FiddleSymbolLoader
+module Fiddle::Win32Types
+
+end
+
+class SymLoaderHash
+	extend Fiddle::Importer
+	@type_alias = {}
+	include Fiddle::Win32Types
 
   TYPE_MAPPINGS = {
     :'void'              => Fiddle::TYPE_VOID,
@@ -55,21 +63,28 @@ class FiddleSymbolLoader
     :'GLDEBUGPROC'       => Fiddle::TYPE_VOIDP,
     :'GLDEBUGPROCARB'    => Fiddle::TYPE_VOIDP,
     :'GLDEBUGPROCKHR'    => Fiddle::TYPE_VOIDP,
-    :'GLDEBUGPROCAMD'    => Fiddle::TYPE_VOIDP,
-  }
-
-  TYPE_MAPPINGS.default_proc = -> (hash, key) do
-    if key.to_s.end_with?('*')
-      hash[key] = Fiddle::TYPE_VOIDP
-    else
-      raise ArgumentError, "No type mapping defined for #{key}"
-    end
-  end
+    :'GLDEBUGPROCAMD'    => Fiddle::TYPE_VOIDP
+  	}
+	def self.[](key)
+		if key.to_s.end_with?('*')
+			TYPE_MAPPINGS[key] = Fiddle::TYPE_VOIDP
+		elsif @type_alias.has_key?(key)
+			TYPE_MAPPINGS[key] = SymLoaderHash.parse_ctype key, @type_alias
+		else
+			TYPE_MAPPINGS[key] = Fiddle::TYPE_VOIDP
+#			raise ArgumentError, "No type mapping defined for #{key}"
+		end
+	end
+	def self.[]=(key, val)
+		TYPE_MAPPINGS[key] = val
+	end
+end
+class FiddleSymbolLoader
 
   def fiddle_typed(types)
     case types
     when Array then types.map { |i| fiddle_typed(i) }
-    else TYPE_MAPPINGS[types.to_sym]
+    else SymLoaderHash[types.to_s]
     end
   end
 
@@ -118,7 +133,6 @@ class FiddleSymbolLoader
 
     begin
       sym = @opengl_lib[name.to_s]
-
       Fiddle::Function.new(
         sym,
         fiddle_typed(types[:parameter_types]),
