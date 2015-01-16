@@ -88,7 +88,7 @@ class FiddleSymbolLoader
   end
 
   def initialize
-    @opengl_lib = nil
+    @opengl_lib = Fiddle::dlopen('opengl32.dll')
 		@glGetProcAddress = nil
     @loaded = {}
   end
@@ -149,14 +149,10 @@ class FiddleSymbolLoader
 				fiddle_typed(GL_COMMAND_TYPES[getProcAddressName][:parameter_types]),
 				fiddle_typed(GL_COMMAND_TYPES[getProcAddressName][:return_type])
 				)
-		puts "#{getProcAddressName.to_s}: #{@glGetProcAddress.ptr}"
     end
 
     begin
-puts "#{name.to_s}: #{fiddle_typed(types[:parameter_types]).to_s}, #{fiddle_typed(types[:return_type]).to_s}"
-
       sym = @opengl_lib[name.to_s]
-			puts "sym: #{sym}"
       Fiddle::Function.new(
         sym,
         fiddle_typed(types[:parameter_types]),
