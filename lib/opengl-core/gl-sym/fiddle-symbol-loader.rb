@@ -17,9 +17,9 @@ module GL
 module GLSym
 
 class SymLoaderHash
-	extend Fiddle::Importer
-	@type_alias = {}
-	include Fiddle::Win32Types
+  extend Fiddle::Importer
+  @type_alias = {}
+  include Fiddle::Win32Types
 
   TYPE_MAPPINGS = {
     :'void'              => Fiddle::TYPE_VOID,
@@ -61,22 +61,21 @@ class SymLoaderHash
     :'GLDEBUGPROCKHR'    => Fiddle::TYPE_VOIDP,
     :'GLDEBUGPROCAMD'    => Fiddle::TYPE_VOIDP,
 
-		:'PROC'							 => Fiddle::TYPE_VOIDP,
-		:'HGLRC'						 => Fiddle::TYPE_VOIDP
-  	}
-	def self.[](key)
-		if TYPE_MAPPINGS.has_key?(key)
-			TYPE_MAPPINGS[key]
-		elsif key.to_s.end_with?('*')
-			TYPE_MAPPINGS[key] = Fiddle::TYPE_VOIDP
-		else
-			TYPE_MAPPINGS[key] = SymLoaderHash.parse_ctype key.to_s, @type_alias
-#			raise ArgumentError, "No type mapping defined for #{key}"
-		end
-	end
-	def self.[]=(key, val)
-		TYPE_MAPPINGS[key] = val
-	end
+    :'PROC'              => Fiddle::TYPE_VOIDP,
+    :'HGLRC'             => Fiddle::TYPE_VOIDP
+    }
+    def self.[](key)
+      if TYPE_MAPPINGS.has_key?(key)
+        TYPE_MAPPINGS[key]
+      elsif key.to_s.end_with?('*')
+        TYPE_MAPPINGS[key] = Fiddle::TYPE_VOIDP
+      else
+        TYPE_MAPPINGS[key] = SymLoaderHash.parse_ctype key.to_s, @type_alias	#parse_ctype Raises an error on "unsupported type"
+      end
+    end
+    def self.[]=(key, val)
+      TYPE_MAPPINGS[key] = val
+    end
 end
 class FiddleSymbolLoader
 
@@ -153,13 +152,14 @@ class FiddleSymbolLoader
 
     begin
       sym = @opengl_lib[name.to_s]
+
       Fiddle::Function.new(
         sym,
         fiddle_typed(types[:parameter_types]),
         fiddle_typed(types[:return_type])
         )
     rescue Fiddle::DLError
-			nil
+      nil
     end if @opengl_lib
   end
 
