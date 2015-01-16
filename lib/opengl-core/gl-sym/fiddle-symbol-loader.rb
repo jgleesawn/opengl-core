@@ -16,10 +16,6 @@ module GL
 
 module GLSym
 
-module Fiddle::Win32Types
-
-end
-
 class SymLoaderHash
 	extend Fiddle::Importer
 	@type_alias = {}
@@ -63,15 +59,18 @@ class SymLoaderHash
     :'GLDEBUGPROC'       => Fiddle::TYPE_VOIDP,
     :'GLDEBUGPROCARB'    => Fiddle::TYPE_VOIDP,
     :'GLDEBUGPROCKHR'    => Fiddle::TYPE_VOIDP,
-    :'GLDEBUGPROCAMD'    => Fiddle::TYPE_VOIDP
+    :'GLDEBUGPROCAMD'    => Fiddle::TYPE_VOIDP,
+
+		:'PROC'							 => Fiddle::TYPE_VOIDP,
+		:'HGLRC'						 => Fiddle::TYPE_VOIDP
   	}
 	def self.[](key)
-		if key.to_s.end_with?('*')
+		if TYPE_MAPPINGS.has_key?(key)
+			TYPE_MAPPINGS[key]
+		elsif key.to_s.end_with?('*')
 			TYPE_MAPPINGS[key] = Fiddle::TYPE_VOIDP
-		elsif @type_alias.has_key?(key)
-			TYPE_MAPPINGS[key] = SymLoaderHash.parse_ctype key, @type_alias
 		else
-			TYPE_MAPPINGS[key] = Fiddle::TYPE_VOIDP
+			TYPE_MAPPINGS[key] = SymLoaderHash.parse_ctype key.to_s, @type_alias
 #			raise ArgumentError, "No type mapping defined for #{key}"
 		end
 	end
@@ -84,12 +83,13 @@ class FiddleSymbolLoader
   def fiddle_typed(types)
     case types
     when Array then types.map { |i| fiddle_typed(i) }
-    else SymLoaderHash[types.to_s]
+    else SymLoaderHash[types.to_sym]
     end
   end
 
   def initialize
     @opengl_lib = nil
+		@glGetProcAddress = nil
     @loaded = {}
   end
 
@@ -108,7 +108,7 @@ class FiddleSymbolLoader
   # GL_COMMAND_TYPES. The returned value is cached in GL_COMMAND_FUNCTIONS and
   # returned if load_sym is called for the same name again.
   def load_sym(name, types)
-    if @opengl_lib.nil?
+    if @opengl_lib.nil? || @glGetProcAddress.nil?
       # Platform detection based on code by Thomas Enebo, written for this
       # Stack Overflow answer: http://stackoverflow.com/a/13586108/457812. As
       # such, this particular bit of code is also available under the same
@@ -128,20 +128,53 @@ class FiddleSymbolLoader
           raise 'Unrecognized platform'
         end
 
+			getProcAddressName =
+				case host
+        when %r[ mac\sos | darwin ]ix
+					:aglGetProcAddress
+        when %r[ mswin | msys | mingw | cygwin | bcwin | wince | emc ]ix
+					:wglGetProcAddress
+        when %r[ linux | solaris | bsd]ix
+					:glXGetProcAddress
+        else
+          raise 'Unrecognized platform'
+        end
+
       @opengl_lib = Fiddle.dlopen(lib_path)
+			getProcAddress = @opengl_lib[getProcAddressName.to_s]
+
+
+    @glGetProcAddress = Fiddle::Function.new( 
+				getProcAddress, 
+				fiddle_typed(GL_COMMAND_TYPES[getProcAddressName][:parameter_types]),
+				fiddle_typed(GL_COMMAND_TYPES[getProcAddressName][:return_type])
+				)
+		puts "#{getProcAddressName.to_s}: #{@glGetProcAddress.ptr}"
     end
 
     begin
+puts "#{name.to_s}: #{fiddle_typed(types[:parameter_types]).to_s}, #{fiddle_typed(types[:return_type]).to_s}"
+
       sym = @opengl_lib[name.to_s]
+			puts "sym: #{sym}"
       Fiddle::Function.new(
         sym,
         fiddle_typed(types[:parameter_types]),
         fiddle_typed(types[:return_type])
         )
     rescue Fiddle::DLError
-      nil
+			nil
     end if @opengl_lib
   end
+
+	def load_ext_sym(name, types)
+		sym = @glGetProcAddress.call(name.to_s)
+		Fiddle::Function.new(
+			sym,
+			fiddle_typed(types[:parameter_types]),
+			fiddle_typed(types[:return_type])
+		)
+	end
 
 end # FiddleSymbolLoader
 
