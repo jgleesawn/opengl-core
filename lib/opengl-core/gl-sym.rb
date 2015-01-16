@@ -51,10 +51,10 @@ module GLSym
         symfunc = self.loader.load_sym(name, GL_COMMAND_TYPES[name])
 
         if symfunc.nil?
-		  symfunc = self.loader.load_ext_sym(name, GL_COMMAND_TYPES[name])
-		  if symfunc.ptr.to_i > -2 && symfunc.ptr.to_i < 5
-          	raise NoMethodError, "GL function #{name} could not be loaded"
-		  end
+		      symfunc = self.loader.load_ext_sym(name, GL_COMMAND_TYPES[name])
+		      if symfunc.ptr.to_i > -2 && symfunc.ptr.to_i < 5
+         	  raise NoMethodError, "GL function #{name} could not be loaded"
+  	      end
         end
 
         symfunc

@@ -101,10 +101,6 @@ def generate_binding_impl(document)
   begin
     gl_commands = get_commands(document)
     gl_enums = get_enums(document)
-#	puts document
-#	gl_commands.each { |comm| puts comm.to_s }
-#	puts gl_commands.to_s
-#	puts gl_enums.to_s
 
     pull_feature = proc { |feature|
       feature_name = feature['name']
